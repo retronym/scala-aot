@@ -479,3 +479,67 @@ Writing out Java source to /Users/jz/code/compiler-benchmark/compilation/target/
 [info] Benchmark                    (corpusVersion)  (extraArgs)  (resident)  (source)  Mode  Cnt     Score       Error  Units
 [info] ColdScalacBenchmark.compile          a8c43dc                    false    scalap    ss   10  4940.913 ± 10916.118  ms/op
 ```
+
+## Effect of AppCDS
+
+```
+% java -version
+openjdk version "11-ea" 2018-09-18
+OpenJDK Runtime Environment 18.9 (build 11-ea+5)
+OpenJDK 64-Bit Server VM 18.9 (build 11-ea+5, mixed mode)
+
+% scala  -nc -J-XX:+UnlockDiagnosticVMOptions -J-Xshare:off -J-XX:+UseAppCDS  -J-XX:DumpLoadedClassList=scala.lst -e 'println("".reverse)'
+
+
+% scala -nc -J-Xshare:dump -J-XX:+UseAppCDS -J-XX:SharedClassListFile=scala.lst  -J-XX:+UnlockDiagnosticVMOptions -J-XX:SharedArchiveFile=scala.jsa  -e 'println("foo".reverse)'
+narrow_klass_base = 0x0000000800000000, narrow_klass_shift = 3
+Allocated temporary class space: 1073741824 bytes at 0x00000008c0000000
+Allocated shared space: 3221225472 bytes at 0x0000000800000000
+Loading classes to share ...
+Loading classes to share: done.
+Rewriting and linking classes ...
+Rewriting and linking classes: done
+Number of classes 2999
+    instance classes   =  2937
+    obj array classes  =    54
+    type array classes =     8
+Updating ConstMethods ... done.
+Removing unshareable information ... done.
+Scanning all metaspace objects ...
+Allocating RW objects ...
+Allocating RO objects ...
+Relocating embedded pointers ...
+Relocating external roots ...
+Dumping symbol table ...
+Dumping String objects to closed archive heap region ...
+Dumping objects to open archive heap region ...
+Relocating SystemDictionary::_well_known_klasses[] ...
+Removing java_mirror ... done.
+mc  space:      9232 [  0.0% of total] out of     12288 bytes [ 75.1% used] at 0x0000000800000000
+rw  space:  14409072 [ 22.4% of total] out of  14409728 bytes [100.0% used] at 0x0000000800003000
+ro  space:  25096768 [ 39.1% of total] out of  25100288 bytes [100.0% used] at 0x0000000800dc1000
+md  space:      6160 [  0.0% of total] out of      8192 bytes [ 75.2% used] at 0x00000008025b1000
+od  space:  23205592 [ 36.1% of total] out of  23207936 bytes [100.0% used] at 0x00000008025b3000
+st0 space:    290816 [  0.5% of total] out of    290816 bytes [100.0% used] at 0x00000007bfe00000
+st1 space:   1048576 [  1.6% of total] out of   1048576 bytes [100.0% used] at 0x00000007bff00000
+oa0 space:    172032 [  0.3% of total] out of    172032 bytes [100.0% used] at 0x00000007bfd00000
+total    :  64238248 [100.0% of total] out of  64249856 bytes [100.0% used]
+
+% ls -lh scala.lst scala.jsa
+-r--r--r--  1 jz  staff    61M Mar 29 13:27 scala.jsa
+-rw-r--r--  1 jz  staff   111K Mar 29 13:27 scala.lst
+
+% time scala -nc -J-Xshare:on -J-XX:+UseAppCDS -J-XX:+UnlockDiagnosticVMOptions -J-XX:SharedArchiveFile=scala.jsa  -e 'println("foo".reverse)'
+oof
+
+real    0m1.548s
+user    0m5.874s
+sys 0m0.235s
+
+% time scala -nc -J-Xshare:on -J-XX:+UseAppCDS -J-XX:+UnlockDiagnosticVMOptions  -e 'println("foo".reverse)'
+oof
+
+real    0m2.033s
+user    0m6.611s
+sys 0m0.223s
+```
